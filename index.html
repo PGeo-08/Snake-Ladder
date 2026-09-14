@@ -545,6 +545,13 @@ async function animateDice(final){
 /* ================= NETWORK (PeerJS) ================= */
 let peer=null, conns=[], hostConn=null, lobbyNames=[], lobbySize=2;
 const ROOM_PREFIX = 'vocab-snakes-ladders-';
+const PEER_OPTS = { config:{ iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject'},
+]}};
 const genCode = ()=> Array.from({length:5},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
 function send(m){ if (hostConn) hostConn.send(m); }
 function broadcast(m){ conns.forEach(c=>{ try{c.send(m);}catch(e){} }); }
@@ -555,7 +562,7 @@ function hostRoom(name, size){
   const code = genCode();
   role='host'; myIdx=0; lobbyNames=[name]; lobbySize=size;
   $('onlineErr').textContent='';
-  peer = new Peer(ROOM_PREFIX+code);
+  peer = new Peer(ROOM_PREFIX+code, PEER_OPTS);
   peer.on('open', ()=>{ showLobby(code); });
   peer.on('error', e=>{ $('onlineErr').textContent='Could not create room: '+e.type+'. Try again.'; destroyPeer(); });
   peer.on('connection', c=>{
@@ -577,10 +584,10 @@ function hostRoom(name, size){
 function joinRoom(name, code){
   if (typeof Peer==='undefined'){ $('onlineErr').textContent='Online play needs an internet connection to load.'; return; }
   role='guest'; $('onlineErr').textContent='Connecting…';
-  peer = new Peer();
+  peer = new Peer(PEER_OPTS);
   peer.on('open', ()=>{
     hostConn = peer.connect(ROOM_PREFIX+code, {reliable:true});
-    const fail = setTimeout(()=>{ if(!hostConn.open){ $('onlineErr').textContent='Room not found. Check the code.'; destroyPeer(); } },8000);
+    const fail = setTimeout(()=>{ if(!hostConn.open){ $('onlineErr').textContent='Found the room but could not connect — your network may block peer-to-peer. Try mobile data or another Wi-Fi.'; destroyPeer(); } },20000);
     hostConn.on('open', ()=>{ clearTimeout(fail); hostConn.send({type:'join', name}); });
     hostConn.on('data', m=>{
       if (m.type==='welcome'){ myIdx=m.idx; showLobby(code, false); }
@@ -590,7 +597,10 @@ function joinRoom(name, code){
     });
     hostConn.on('close', ()=>{ if (S){ S.log='Lost connection to the host.'; $('connLine').textContent='Disconnected from host'; render(); } else { $('lobbyErr').textContent='Host left the room.'; } });
   });
-  peer.on('error', e=>{ $('onlineErr').textContent='Connection failed: '+e.type; destroyPeer(); });
+  peer.on('error', e=>{
+    $('onlineErr').textContent = e.type==='peer-unavailable' ? 'Room not found. Check the code (and make sure the host is still on the room screen).' : 'Connection failed: '+e.type;
+    destroyPeer();
+  });
 }
 
 /* ================= SCREENS ================= */
