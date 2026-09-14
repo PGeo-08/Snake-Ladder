@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Snakes & Ladders — Unit 2 Vocabulary</title>
+<title>Road to the Top — Unit 2 Vocabulary</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
@@ -69,6 +69,12 @@
   .lobby{display:grid;gap:8px}
   .seat{display:flex;align-items:center;gap:10px;background:#fff8e6;border-radius:12px;padding:10px 12px;font-weight:800}
   .seat.empty{color:#a5947a;font-weight:700;font-style:italic}
+  .modePick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .modePick button{padding:10px 8px;background:#fff;color:var(--ink);box-shadow:0 3px 0 #c4b58f;border:3px solid transparent;font-size:15px;line-height:1.2}
+  .modePick button small{display:block;font-family:'Nunito';font-weight:700;font-size:12px;opacity:.75;margin-top:3px}
+  .modePick button.on{border-color:var(--ink)}
+  .modePick button.rampage.on{border-color:var(--snake);color:var(--snake)}
+  .badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:8px;background:var(--snake);color:#fff;vertical-align:middle}
   .note{font-size:13px;font-weight:700;color:#6c5a3c;line-height:1.5}
   .err{color:var(--bad);font-weight:800;font-size:14px;min-height:20px}
 
@@ -152,7 +158,7 @@
 <!-- ========== HOME ========== -->
 <div class="home" id="home">
   <div class="card">
-    <h1>🐍 Snakes & Ladders 🪜</h1>
+    <h1>🪜 Road to the Top 🐍</h1>
     <p class="sub">Unit 2 vocabulary — family, relationships & phrasal verbs</p>
     <div class="modes">
       <button id="btnLocal">Same device<small>Pass the phone around</small></button>
@@ -173,6 +179,13 @@
       <label>Names</label>
       <div class="names" id="localNames"></div>
     </div>
+<div class="field" style="margin-top:12px">
+      <label>Game mode</label>
+      <div class="modePick" data-mode-picker>
+        <button data-m="classic" class="on">Classic<small>Snakes slide you down</small></button>
+        <button data-m="rampage" class="rampage">Rampage 🔥<small>Snakes send you back to 1</small></button>
+      </div>
+    </div>
     <div class="row" style="margin-top:14px">
       <button class="ghost" id="localBack">Back</button>
       <button id="localStart">Start game</button>
@@ -191,8 +204,15 @@
       <div class="seg" id="onlineCount">
         <button data-n="2" class="on">2 players</button><button data-n="3">3 players</button><button data-n="4">4 players</button>
       </div>
-      <button id="hostBtn">Create room</button>
     </div>
+    <div class="field" style="margin-top:10px">
+      <label>Game mode</label>
+      <div class="modePick" data-mode-picker>
+        <button data-m="classic" class="on">Classic<small>Snakes slide you down</small></button>
+        <button data-m="rampage" class="rampage">Rampage 🔥<small>Snakes send you back to 1</small></button>
+      </div>
+    </div>
+    <button id="hostBtn" style="margin-top:10px;width:100%">Create room</button>
     <div class="field" style="margin-top:14px">
       <label>Or join a room with a code</label>
       <div class="row">
@@ -209,6 +229,7 @@
   <div class="card hidden" id="lobby">
     <h2 style="font-size:24px;margin-bottom:6px" id="lobbyTitle">Room code</h2>
     <div class="roomCode" id="lobbyCode">—</div>
+    <p class="note" style="text-align:center;margin:6px 0 0" id="lobbyMode"></p>
     <p class="note" style="text-align:center;margin:8px 0 12px" id="lobbyNote">Share this code with your friends</p>
     <div class="lobby" id="lobbySeats"></div>
     <div class="err" id="lobbyErr"></div>
@@ -223,8 +244,8 @@
 <div class="app hidden" id="game">
   <div class="boardWrap">
     <div class="boardTitle">
-      <span>🐍 Snakes & Ladders 🪜</span>
-      <small>Unit 2 Vocabulary</small>
+      <span>🪜 Road to the Top 🐍</span>
+      <small id="modeLabel">Unit 2 Vocabulary</small>
     </div>
     <div class="board" id="board">
       <svg class="lines" id="lines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
@@ -246,7 +267,7 @@
       <b>How to play</b><br>
       1. Roll the dice → a vocabulary question appears (15 seconds)<br>
       2. Correct → move the number rolled &nbsp;|&nbsp; Wrong or time's up → stay put<br>
-      3. Land on <b style="color:var(--ladder)">🪜</b> to climb, on <b style="color:var(--snake)">🐍</b> to slide down<br>
+      3. Land on <b style="color:var(--ladder)">🪜</b> to climb, on <b style="color:var(--snake)">🐍</b> <span id="ruleSnake">to slide down</span><br>
       4. First to reach square 100 wins
       <div style="margin-top:10px"><button class="ghost" id="quitBtn" style="font-size:14px;padding:8px 14px">Back to home</button></div>
     </div>
@@ -382,8 +403,10 @@ let qBag = [];
 let timerHandle = null;
 let tokens = [];
 
-function newState(names){
+let gameMode='classic';
+function newState(names, mode=gameMode){
   return {
+    mode,
     players: names.map(n=>({name:n,pos:1,correct:0,total:0})),
     cur:0, phase:'roll', dice:6, question:null, timeLeft:QTIME,
     reveal:null, log:'Roll the dice, then answer correctly to move.', winner:null,
@@ -436,11 +459,15 @@ async function movePlayer(){
   for (let s=0;s<S.dice && p.pos<100;s++){ p.pos++; S.log=`${p.name} moves to ${p.pos}`; sync(); await wait(220); }
   await wait(300);
   if (LADDERS[p.pos]){ S.log=`🪜 ${p.name} found a ladder! ${p.pos} → ${LADDERS[p.pos]}`; p.pos=LADDERS[p.pos]; sync(); await wait(650); }
-  else if (SNAKES[p.pos]){ S.log=`🐍 ${p.name} hit a snake! ${p.pos} → ${SNAKES[p.pos]}`; p.pos=SNAKES[p.pos]; sync(); await wait(650); }
+  else if (SNAKES[p.pos]){
+    const to = S.mode==='rampage' ? 1 : SNAKES[p.pos];
+    S.log = S.mode==='rampage' ? `🐍🔥 ${p.name} hit a snake — back to square 1!` : `🐍 ${p.name} hit a snake! ${p.pos} → ${to}`;
+    p.pos=to; sync(); await wait(650);
+  }
 }
 function restart(){
   clearInterval(timerHandle);
-  S = newState(S.players.map(p=>p.name)); buildBag(); sync();
+  S = newState(S.players.map(p=>p.name), S.mode); buildBag(); sync();
 }
 
 /* -- input from UI -- */
@@ -494,6 +521,8 @@ function render(){
   $('turnLine').textContent = canAct() ? `Your turn, ${curName}!` : `${curName}'s turn`;
   $('rollBtn').disabled = !(S.phase==='roll' && canAct());
   $('log').textContent = S.log;
+  $('modeLabel').innerHTML = S.mode==='rampage' ? 'Unit 2 Vocabulary · <span class="badge">Rampage</span>' : 'Unit 2 Vocabulary · Classic';
+  $('ruleSnake').textContent = S.mode==='rampage' ? 'and you go back to square 1' : 'to slide down';
 
   if (S.phase==='rolling' && lastPhase!=='rolling') animateDice(S.dice);
   else if (S.phase!=='rolling') showDice(S.dice);
@@ -544,7 +573,7 @@ async function animateDice(final){
 
 /* ================= NETWORK (PeerJS) ================= */
 let peer=null, conns=[], hostConn=null, lobbyNames=[], lobbySize=2;
-const ROOM_PREFIX = 'vocab-snakes-ladders-';
+const ROOM_PREFIX = 'road-to-the-top-';
 const PEER_OPTS = { config:{ iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'},
@@ -571,7 +600,7 @@ function hostRoom(name, size){
         if (S || lobbyNames.length>=lobbySize){ c.send({type:'full'}); setTimeout(()=>c.close(),300); return; }
         conns.push(c); c.idx = lobbyNames.length; lobbyNames.push(m.name||('Player '+(c.idx+1)));
         c.send({type:'welcome', idx:c.idx});
-        broadcast({type:'lobby', names:lobbyNames, size:lobbySize}); renderLobby();
+        broadcast({type:'lobby', names:lobbyNames, size:lobbySize, mode:gameMode}); renderLobby();
       } else if (m.type==='roll' && S && S.cur===c.idx) doRoll();
       else if (m.type==='answer' && S && S.cur===c.idx) doAnswer(m.choice);
     });
@@ -591,7 +620,7 @@ function joinRoom(name, code){
     hostConn.on('open', ()=>{ clearTimeout(fail); hostConn.send({type:'join', name}); });
     hostConn.on('data', m=>{
       if (m.type==='welcome'){ myIdx=m.idx; showLobby(code, false); }
-      else if (m.type==='lobby'){ lobbyNames=m.names; lobbySize=m.size; renderLobby(); }
+      else if (m.type==='lobby'){ lobbyNames=m.names; lobbySize=m.size; if(m.mode) gameMode=m.mode; renderLobby(); }
       else if (m.type==='full'){ $('onlineErr').textContent='That room is full.'; destroyPeer(); }
       else if (m.type==='state'){ S=m.state; render(); }
     });
@@ -624,6 +653,7 @@ function renderLobby(){
       : `<div class="seat empty"><span class="dot" style="background:#ddd"></span>Waiting for player ${i+1}…</div>`);
   }
   $('lobbyStart').disabled = lobbyNames.length<2;
+  $('lobbyMode').innerHTML = gameMode==='rampage' ? 'Mode: <span class="badge">Rampage</span> — snakes send you back to 1' : 'Mode: Classic';
 }
 function enterGame(){
   show('game'); tokens.forEach(t=>t.remove()); tokens=[]; lastPhase=null;
@@ -635,6 +665,11 @@ function goHome(){
   show('home'); showHomeCard(null);
 }
 
+/* mode pickers (both setup cards stay in sync) */
+document.querySelectorAll('[data-mode-picker]').forEach(pk=>pk.onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return; gameMode=b.dataset.m;
+  document.querySelectorAll('[data-mode-picker] button').forEach(x=>x.classList.toggle('on',x.dataset.m===gameMode));
+});
 /* local setup */
 let localN=2;
 function renderLocalNames(){
